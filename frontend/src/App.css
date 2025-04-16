@@ -1,0 +1,25 @@
+.App {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 1300px;
+  width: 95%;
+  justify-content: center;
+  align-items: flex-start; /* Изменено с center на flex-start */
+  gap: 20px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 480px) {
+  .App {
+    width: 100%;
+    padding: 10px;
+    gap: 15px;
+    align-items: center; /* На мобильных можно оставить центрирование */
+  }
+}
