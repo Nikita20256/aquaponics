@@ -4,6 +4,8 @@ const mqtt = require('mqtt');
 const cors = require('cors');
 const app = express();
 
+test = "test";
+
 app.use(cors());
 app.use(express.static('public'));
 
