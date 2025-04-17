@@ -2,16 +2,28 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const mqtt = require('mqtt');
 const cors = require('cors');
+const fs = require('fs');
 const app = express();
-
-test = "test";
 
 app.use(cors());
 app.use(express.static('public'));
 
+// Логирование в файл
+const logStream = fs.createWriteStream('server.log', { flags: 'a' });
+const log = (message) => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} - ${message}\n`;
+  console.log(logMessage.trim());
+  logStream.write(logMessage);
+};
+
+// SQLite подключение
 const db = new sqlite3.Database('aquaponics.db', (err) => {
-  if (err) console.error('SQLite error:', err);
-  else console.log('SQLite connected');
+  if (err) {
+    log(`SQLite error: ${err.message}`);
+    process.exit(1);
+  }
+  log('SQLite connected');
 });
 db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS temperature (id INTEGER PRIMARY KEY AUTOINCREMENT, value REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)");
@@ -19,54 +31,58 @@ db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS light (id INTEGER PRIMARY KEY AUTOINCREMENT, value REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)");
 });
 
-const mqttClient = mqtt.connect('mqtt://test.mosquitto.org');
+// MQTT подключение
+const mqttClient = mqtt.connect('mqtt://test.mosquitto.org', {
+  reconnectPeriod: 1000,
+});
 let latestTemperature = 0;
 let latestHumidity = 0;
 let latestLight = 0;
 
 mqttClient.on('connect', () => {
-  console.log('MQTT connected');
-  mqttClient.subscribe('aquaponics/temperature', (err) => {
-    if (err) console.error('MQTT subscribe error:', err);
-    else console.log('Subscribed to temperature topic');
-  });
-  mqttClient.subscribe('aquaponics/humidity', (err) => {
-    if (err) console.error('MQTT subscribe error:', err);
-    else console.log('Subscribed to humidity topic');
-  });
-  mqttClient.subscribe('aquaponics/light', (err) => {
-    if (err) console.error('MQTT subscribe error:', err);
-    else console.log('Subscribed to light topic');
+  log('MQTT connected');
+  mqttClient.subscribe(['aquaponics/temperature', 'aquaponics/humidity', 'aquaponics/light'], (err) => {
+    if (err) {
+      log(`MQTT subscribe error: ${err.message}`);
+    } else {
+      log('Subscribed to MQTT topics');
+    }
   });
 });
 
 mqttClient.on('message', (topic, message) => {
   const value = parseFloat(message.toString());
+  if (isNaN(value)) {
+    log(`Invalid MQTT message on ${topic}: ${message}`);
+    return;
+  }
+
   if (topic === 'aquaponics/temperature') {
     latestTemperature = value;
     db.run("INSERT INTO temperature (value) VALUES (?)", [value], (err) => {
-      if (err) console.error('SQLite insert error (temp):', err);
+      if (err) log(`SQLite insert error (temp): ${err.message}`);
+      else log(`Received temperature: ${value}`);
     });
-    console.log(`Received temperature: ${value}`);
   } else if (topic === 'aquaponics/humidity') {
     latestHumidity = value;
     db.run("INSERT INTO humidity (value) VALUES (?)", [value], (err) => {
-      if (err) console.error('SQLite insert error (humid):', err);
+      if (err) log(`SQLite insert error (humid): ${err.message}`);
+      else log(`Received humidity: ${value}`);
     });
-    console.log(`Received humidity: ${value}`);
   } else if (topic === 'aquaponics/light') {
     latestLight = value;
     db.run("INSERT INTO light (value) VALUES (?)", [value], (err) => {
-      if (err) console.error('SQLite insert error (light):', err);
+      if (err) log(`SQLite insert error (light): ${err.message}`);
+      else log(`Received light: ${value}`);
     });
-    console.log(`Received light: ${value}`);
   }
 });
 
 mqttClient.on('error', (err) => {
-  console.error('MQTT error:', err);
+  log(`MQTT error: ${err.message}`);
 });
 
+// API маршруты для актуальных данных
 app.get('/temperature', (req, res) => {
   res.json({ temperature: latestTemperature });
 });
@@ -79,31 +95,92 @@ app.get('/lightlevel', (req, res) => {
   res.json({ light: latestLight });
 });
 
-app.get('/history', (req, res) => {
-  db.all("SELECT value, timestamp FROM temperature ORDER BY timestamp DESC LIMIT 10", (err, tempRows) => {
-    if (err) {
-      console.error('SQLite select error (temp):', err);
-      res.status(500).json({ error: 'Database error' });
-    } else {
-      db.all("SELECT value, timestamp FROM humidity ORDER BY timestamp DESC LIMIT 10", (err, humidRows) => {
-        if (err) {
-          console.error('SQLite select error (humid):', err);
-          res.status(500).json({ error: 'Database error' });
-        } else {
-          db.all("SELECT value, timestamp FROM light ORDER BY timestamp DESC LIMIT 10", (err, lightRows) => {
-            if (err) {
-              console.error('SQLite select error (light):', err);
-              res.status(500).json({ error: 'Database error' });
-            } else {
-              res.json({ temperature: tempRows, humidity: humidRows, light: lightRows });
-            }
-          });
-        }
-      });
+// API для исторических данных по датчикам
+app.get('/data/temperature', (req, res) => {
+  const { start, end, limit } = req.query;
+  const queryLimit = parseInt(limit) || 100;
+  const startTime = start ? new Date(start).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const endTime = end ? new Date(end).toISOString() : new Date().toISOString();
+
+  db.all(
+    "SELECT value, timestamp FROM temperature WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp ASC LIMIT ?",
+    [startTime, endTime, queryLimit],
+    (err, rows) => {
+      if (err) {
+        log(`SQLite select error (temperature): ${err.message}`);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(rows);
     }
+  );
+});
+
+app.get('/data/humidity', (req, res) => {
+  const { start, end, limit } = req.query;
+  const queryLimit = parseInt(limit) || 100;
+  const startTime = start ? new Date(start).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const endTime = end ? new Date(end).toISOString() : new Date().toISOString();
+
+  db.all(
+    "SELECT value, timestamp FROM humidity WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp ASC LIMIT ?",
+    [startTime, endTime, queryLimit],
+    (err, rows) => {
+      if (err) {
+        log(`SQLite select error (humidity): ${err.message}`);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.get('/data/light', (req, res) => {
+  const { start, end, limit } = req.query;
+  const queryLimit = parseInt(limit) || 100;
+  const startTime = start ? new Date(start).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const endTime = end ? new Date(end).toISOString() : new Date().toISOString();
+
+  db.all(
+    "SELECT value, timestamp FROM light WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp ASC LIMIT ?",
+    [startTime, endTime, queryLimit],
+    (err, rows) => {
+      if (err) {
+        log(`SQLite select error (light): ${err.message}`);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Запуск сервера
+const server = app.listen(3000, '0.0.0.0', () => {
+  log('Server running on http://0.0.0.0:3000');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  log('Received SIGTERM. Shutting down gracefully...');
+  server.close(() => {
+    db.close((err) => {
+      if (err) log(`Error closing SQLite: ${err.message}`);
+      mqttClient.end();
+      logStream.end();
+      log('Server stopped');
+      process.exit(0);
+    });
   });
 });
 
-app.listen(3000, '0.0.0.0', () => {
-  console.log('Server running on http://0.0.0.0:3000');
+process.on('SIGINT', () => {
+  log('Received SIGINT. Shutting down gracefully...');
+  server.close(() => {
+    db.close((err) => {
+      if (err) log(`Error closing SQLite: ${err.message}`);
+      mqttClient.end();
+      logStream.end();
+      log('Server stopped');
+      process.exit(0);
+    });
+  });
 });
