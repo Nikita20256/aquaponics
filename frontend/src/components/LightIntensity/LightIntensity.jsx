@@ -87,7 +87,6 @@ const LightIntensity = ({ lightLevel }) => {
             )}
           </p>
         )}
-        <Button />
       </div>
     </div>
   );

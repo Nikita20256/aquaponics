@@ -60,7 +60,6 @@ const Humidity = ({ humidity }) => {
              humidity < 80 ? '🌧️ Влажно' : '☔️ Сыро'}
           </p>
         )}
-        <Button />
       </div>
     </div>
   )

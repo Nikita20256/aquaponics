@@ -61,7 +61,6 @@ const Temperature = ({ temperature }) => {
              temperature < 30 ? '⚠️ Тепло' : '🔥 Опасно'}
           </p>
         )}
-        <Button/>
       </div>
     </div>
   );

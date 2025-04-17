@@ -10,45 +10,69 @@ function App() {
   const [temperature, setTemperature] = useState(0);
   const [humidity, setHumidity] = useState(0);
   const [lightLevel, setLightLevel] = useState(0);
-  const [history, setHistory] = useState([]);
-  const [timestamps, setTimestamps] = useState([]);
+  const [historicalData, setHistoricalData] = useState(null);
+  const [timeRange, setTimeRange] = useState({
+    startDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 часа назад
+    endDate: new Date()
+  });
 
-  const fetchAllData = async () => {
+  // Функция для получения исторических данных
+  const fetchHistoricalData = async (start, end) => {
     try {
-      const now = new Date();
-      const timeString = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      const [tempData, humidData, lightData] = await Promise.all([
+        axios.get(`http://172.16.22.225:3000/data/temperature?start=${start.toISOString()}&end=${end.toISOString()}`),
+        axios.get(`http://172.16.22.225:3000/data/humidity?start=${start.toISOString()}&end=${end.toISOString()}`),
+        axios.get(`http://172.16.22.225:3000/data/light?start=${start.toISOString()}&end=${end.toISOString()}`)
+      ]);
       
+      setHistoricalData({
+        temperature: tempData.data,
+        humidity: humidData.data,
+        light: lightData.data
+      });
+    } catch (error) {
+      console.error('Error fetching historical data:', error);
+    }
+  };
+
+  // Функция для получения текущих данных
+  const fetchCurrentData = async () => {
+    try {
       const [tempResponse, humidResponse, lightResponse] = await Promise.all([
         axios.get('http://172.16.22.225:3000/temperature'),
         axios.get('http://172.16.22.225:3000/humidity'),
         axios.get('http://172.16.22.225:3000/lightlevel')
       ]);
       
-      setTemperature(tempResponse.data.temperature)
-      setHumidity(humidResponse.data.humidity)
-      setLightLevel(lightResponse.data.light)
-      
-      setHistory(prev => {
-        const newData = {
-          time: timeString,
-          temperature: tempResponse.data.temperature,
-          humidity: humidResponse.data.humidity,
-          light: lightResponse.data.light
-        };
-        return [...prev.slice(-9), newData];
-      })
-      
-      setTimestamps(prev => [...prev.slice(-9), timeString]);
+      setTemperature(tempResponse.data.temperature);
+      setHumidity(humidResponse.data.humidity);
+      setLightLevel(lightResponse.data.light);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching current data:', error);
     }
-  }
+  };
+
+  // Обработчик изменения диапазона времени
+  const handleTimeRangeChange = (newStartDate, newEndDate) => {
+    setTimeRange({
+      startDate: newStartDate,
+      endDate: newEndDate
+    });
+    fetchHistoricalData(newStartDate, newEndDate);
+  };
 
   useEffect(() => {
-    fetchAllData();
-    const interval = setInterval(fetchAllData, 3000);
-    return () => clearInterval(interval);
-  }, [])
+    // Загружаем текущие данные сразу и каждые 3 секунды
+    fetchCurrentData();
+    const currentDataInterval = setInterval(fetchCurrentData, 3000);
+    
+    // Загружаем исторические данные при монтировании
+    fetchHistoricalData(timeRange.startDate, timeRange.endDate);
+    
+    return () => {
+      clearInterval(currentDataInterval);
+    };
+  }, []);
 
   return (
     <div className="App">
@@ -57,9 +81,14 @@ function App() {
         <Humidity humidity={humidity}/>
         <LightIntensity lightLevel={lightLevel}/>
       </div>
-      <SensorChart timestamps={timestamps} history={history} />
+      <SensorChart 
+        historicalData={historicalData}
+        startDate={timeRange.startDate}
+        endDate={timeRange.endDate}
+        onTimeRangeChange={handleTimeRangeChange}
+      />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
