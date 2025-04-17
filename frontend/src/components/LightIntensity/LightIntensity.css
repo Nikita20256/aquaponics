@@ -1,0 +1,106 @@
+.light-card {
+  border-radius: 14px;
+  padding: 0.25rem;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.light-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.light-title {
+  color: #2C3E50;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.light-icons {
+  display: flex;
+  gap: 0.4rem;
+  opacity: 0.7;
+}
+
+.icon {
+  font-size: 0.9rem;
+}
+
+.light-display {
+  margin: 0.8rem 0;
+}
+
+.light-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1;
+}
+
+.light-unit {
+  font-size: 1.2rem;
+  vertical-align: super;
+  margin-left: 2px;
+  opacity: 0.8;
+}
+
+.light-scale {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  font-size: 0.7rem;
+}
+
+.scale-bar {
+  flex-grow: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.scale-progress {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.light-footer {
+  margin-top: 0.8rem;
+}
+
+.status-message {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.4rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  margin: 0 0 0.5rem 0;
+}
+
+@media (max-width: 480px) {
+  .light-card {
+    padding: 0.6rem;
+    width: 180px;
+  }
+  
+  .light-title {
+    font-size: 0.9rem;
+  }
+  
+  .light-value {
+    font-size: 2rem;
+  }
+}
