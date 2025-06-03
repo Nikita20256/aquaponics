@@ -1,23 +1,23 @@
-import React from 'react'
-import './Humidity.css'
-import Button from '../Button/Button'
+import React from 'react';
+import './Humidity.css';
 
 const Humidity = ({ humidity }) => {
   const colors = {
-    dry: '#F6BB42',
-    ideal: '#4FC1E9',
-    moist: '#37BC9B',
-    saturated: '#3BAFDA',
-    danger: '#E9573F',
-    textDark: '#2C3E50'
+    dry: '#E05038',      // Цвет для сухого состояния
+    wet: '#3A5C40',      // Цвет для влажного состояния
+    textDark: '#1E3B23'  // Цвет текста
   };
 
   const getHumidityColor = (hum) => {
-    if (hum === null) return colors.textDark
-    if (hum < 30) return colors.dry
-    if (hum < 60) return colors.ideal
-    if (hum < 80) return colors.moist
-    return colors.saturated
+    if (hum === null) return colors.textDark;
+    if (hum < 30) return colors.dry;  // Порог 50% для разделения
+    return colors.wet;
+  };
+
+  const getStatusMessage = (hum) => {
+    if (hum === null) return 'Нет данных';
+    if (hum < 30) return '🏜️ Сухо';  // Меньше 50% - сухо
+    return '💧 Влажно';              // 50% и выше - влажно
   };
 
   return (
@@ -44,25 +44,21 @@ const Humidity = ({ humidity }) => {
               className="scale-progress" 
               style={{
                 width: humidity ? `${humidity}%` : '0%',
-                background: getHumidityColor(humidity)
+                backgroundColor: getHumidityColor(humidity)
               }}
             />
           </div>
-          <span style={{ color: colors.saturated }}>100%</span>
+          <span style={{ color: colors.wet }}>100%</span>
         </div>
       </div>
 
       <div className="humidity-footer">
-        {humidity !== null && (
-          <p className="status-message">
-            {humidity < 30 ? '🏜️ Сухо' :
-             humidity < 60 ? '🌱 Норма' :
-             humidity < 80 ? '🌧️ Влажно' : '☔️ Сыро'}
-          </p>
-        )}
+        <p className="status-message">
+          {getStatusMessage(humidity)}
+        </p>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Humidity
+export default Humidity;

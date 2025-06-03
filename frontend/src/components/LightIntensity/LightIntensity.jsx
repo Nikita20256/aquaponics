@@ -1,53 +1,35 @@
 import React from 'react';
 import './LightIntensity.css';
-import Button from '../Button/Button';
 
-const LightIntensity = ({ lightLevel }) => {
-  // Цветовая палитра на основе природных оттенков света
+const LightIntensity = ({ lightLevel, lightSwitches }) => {
+  // Упрощенная цветовая палитра
   const colors = {
-    dark: '#4A4A4A',        // Темный (недостаток света)
-    low: '#8CC152',         // Зеленый (низкий уровень)
-    ideal: '#FFCE54',       // Желтый (идеальный уровень)
-    high: '#FC6E51',        // Оранжевый (высокий уровень)
-    danger: '#ED5565',      // Красный (опасный уровень)
-    textDark: '#2C3E50',
-    textLight: '#F5F7FA'
+    dark: '#3A5C40',    // Темнота
+    medium: '#7CB45D',  // Средний уровень
+    bright: '#F0A830',  // Яркий свет
+    textDark: '#1E3B23'
   };
 
-  // Определение цвета освещенности
   const getLightColor = (light) => {
     if (light === null) return colors.textDark;
-    if (light < 2000) return colors.dark;      // Слишком темно
-    if (light < 10000) return colors.low;     // Низкий уровень
-    if (light < 30000) return colors.ideal;   // Идеально
-    if (light < 50000) return colors.high;    // Высокий уровень
-    return colors.danger;                     // Опасно
+    if (light < 400) return colors.dark;
+    if (light <= 800) return colors.medium;
+    return colors.bright;
   };
 
-  // Градиент на основе солнечного света
-  const getBackground = () => {
-    return `linear-gradient(135deg, ${colors.ideal}20 0%, ${colors.high}20 100%)`;
-  };
-
-  // Перевод в проценты для шкалы
   const getPercentage = (light) => {
     if (!light) return 0;
-    return Math.min(100, (light / 50000) * 100);
+    return Math.min(100, (light / 1000) * 100); // Максимум 1000 для шкалы
   };
 
   return (
-    <div 
-      className="light-card"
-      style={{ background: getBackground() }}
-    >
+    <div className="light-card">
       <div className="light-header">
         <h1 className="light-title">
-          <span className="icon">☀️</span> Освещенние аквапоники 
+          <span className="icon">🌿</span> Освещенность аквапоники
         </h1>
         <div className="light-icons">
-          <span className="icon">🌑</span>
-          <span className="icon">🌤️</span>
-          <span className="icon">🔆</span>
+          <span className="icon">🌲</span>
         </div>
       </div>
 
@@ -63,29 +45,33 @@ const LightIntensity = ({ lightLevel }) => {
               className="scale-progress" 
               style={{
                 width: `${getPercentage(lightLevel)}%`,
-                background: getLightColor(lightLevel)
+                backgroundColor: getLightColor(lightLevel)
               }}
             />
           </div>
-          <span style={{ color: colors.danger }}>50k</span>
+          <span style={{ color: colors.bright }}>1k</span>
+        </div>
+      </div>
+
+      {/* Блок с счетчиком включений */}
+      <div className="light-display-count">
+        <div className="count-title">Включений света сегодня:</div>
+        <div className="count-value">
+          {lightSwitches !== null ? lightSwitches : '--'}
         </div>
       </div>
 
       <div className="light-footer">
         {lightLevel !== null && (
-          <p className="status-message">
-            {lightLevel < 2000 ? (
-              <>🌑 Слишком темно для растений</>
-            ) : lightLevel < 10000 ? (
-              <>🌥️ Низкая освещенность</>
-            ) : lightLevel < 30000 ? (
-              <>🌞 Идеальный уровень</>
-            ) : lightLevel < 50000 ? (
-              <>⚠️ Яркий свет</>
+          <div className="status-message">
+            {lightLevel < 400 ? (
+              <>🌑 Темно (ниже 400 lux)</>
+            ) : lightLevel <= 800 ? (
+              <>🌥️ Средне (400-800 lux)</>
             ) : (
-              <>🔥 Опасная интенсивность</>
+              <>☀️ Светло (выше 800 lux)</>
             )}
-          </p>
+          </div>
         )}
       </div>
     </div>
